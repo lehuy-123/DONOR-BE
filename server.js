@@ -27,6 +27,7 @@ const UserSchema = new mongoose.Schema({
   donationCount: { type: Number, default: 0 },
   pushSubscription: Object,
   isOnline: { type: Boolean, default: false },
+  sessionToken: String,
   chats: [{ text: String, sender: String, hospitalId: String, time: String, image: String }]
 }, { timestamps: true });
 
@@ -52,9 +53,13 @@ app.post('/api/users/sync', async (req, res) => {
        let query = mockId ? { _id: mockId } : { phone };
        
        let user = null;
+       let newSessionToken = null;
        if (mockId) {
           user = await User.findById(mockId);
        } else {
+          // Gắn cờ hiệu tạo session mới vì đây là luồng đăng nhập (không truyền mockId)
+          newSessionToken = Math.random().toString(36).substring(2, 15);
+          
           const existingUserByEmail = await User.findOne({ email });
           const existingUserByPhone = await User.findOne({ phone });
           
@@ -86,7 +91,17 @@ app.post('/api/users/sync', async (req, res) => {
            if (bloodType) user.bloodType = bloodType;
            user.isOnline = true;
        }
+       
+       if (newSessionToken) {
+           user.sessionToken = newSessionToken;
+       }
+       
        await user.save();
+       
+       if (newSessionToken) {
+           io.to(user._id.toString()).emit('force-logout', newSessionToken);
+       }
+       
        // Trả về id dưới dạng string để Frontend dể tương tác
        res.json({ user: { ...user._doc, id: user._id.toString() } });
    } catch(e) { res.status(500).json({ error: e.message }) }
