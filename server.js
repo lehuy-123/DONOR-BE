@@ -55,7 +55,7 @@ app.post('/api/users/sync', async (req, res) => {
        if (mockId) {
           user = await User.findById(mockId);
        } else {
-          user = await User.findOne({ phone });
+          user = await User.findOne({ email });
        }
        
        if (!user) {
@@ -63,6 +63,9 @@ app.post('/api/users/sync', async (req, res) => {
        } else {
            if (location) user.location = location;
            if (pushSubscription) user.pushSubscription = pushSubscription;
+           if (name) user.name = name;
+           if (phone) user.phone = phone;
+           if (bloodType) user.bloodType = bloodType;
            user.isOnline = true;
        }
        await user.save();
