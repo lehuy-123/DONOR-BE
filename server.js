@@ -55,7 +55,25 @@ app.post('/api/users/sync', async (req, res) => {
        if (mockId) {
           user = await User.findById(mockId);
        } else {
-          user = await User.findOne({ email });
+          const existingUserByEmail = await User.findOne({ email });
+          const existingUserByPhone = await User.findOne({ phone });
+          
+          if (existingUserByEmail && existingUserByPhone) {
+              if (existingUserByEmail._id.toString() !== existingUserByPhone._id.toString()) {
+                  return res.status(400).json({ error: "Email và Số điện thoại này đang thuộc về 2 tài khoản khác nhau!" });
+              }
+              user = existingUserByEmail;
+          } else if (existingUserByEmail) {
+              if (existingUserByEmail.phone !== phone) {
+                  return res.status(400).json({ error: `Email ${email} đã được đăng ký với một số điện thoại khác!` });
+              }
+              user = existingUserByEmail;
+          } else if (existingUserByPhone) {
+              if (existingUserByPhone.email !== email) {
+                  return res.status(400).json({ error: `Số điện thoại ${phone} đã được đăng ký với một email khác!` });
+              }
+              user = existingUserByPhone;
+          }
        }
        
        if (!user) {
