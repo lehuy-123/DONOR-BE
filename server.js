@@ -100,6 +100,14 @@ app.get('/api/users/:id/chats', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }) }
 });
 
+// Lấy toàn bộ users (Dành cho Hộp thư Inbox)
+app.get('/api/users', async (req, res) => {
+    try {
+        const users = await User.find({});
+        res.json({ users: users.map(u => ({ ...u._doc, id: u._id.toString() })) });
+    } catch(e) { res.status(500).json({ error: e.message }) }
+});
+
 // Gửi tin nhắn thông thường qua API (dành cho Chat)
 app.post('/api/users/:id/chats', async (req, res) => {
     try {
