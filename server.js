@@ -186,7 +186,10 @@ app.post('/api/emergency/push', async (req, res) => {
                 body: `Bệnh viện ${hospitalName} đang rất cần ${bloodType}. VUI LÒNG ĐẾN NGAY! Lộ trình đã mở.`,
             });
             try {
-               await webpush.sendNotification(user.pushSubscription, payload);
+               await webpush.sendNotification(user.pushSubscription, payload, {
+                   urgency: 'high',
+                   TTL: 86400
+               });
             } catch(e) { console.error("WebPush Error:", e) }
         }
 
