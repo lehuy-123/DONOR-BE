@@ -52,7 +52,9 @@ app.post('/api/users/sync', async (req, res) => {
        let query = mockId ? { _id: mockId } : { phone };
        
        let user = null;
-       if (!mockId) {
+       if (mockId) {
+          user = await User.findById(mockId);
+       } else {
           user = await User.findOne({ phone });
        }
        
