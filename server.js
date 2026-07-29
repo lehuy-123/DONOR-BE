@@ -49,7 +49,10 @@ const BroadcastSchema = new mongoose.Schema({
       supportType: String,
       helperName: String,
       helperPhone: String,
-      helperBloodType: String
+      helperBloodType: String,
+      helperLat: Number,
+      helperLng: Number,
+      respondedAt: { type: Date, default: Date.now }
   }]
 }, { timestamps: true });
 
@@ -193,7 +196,7 @@ app.post('/api/broadcasts', async (req, res) => {
 // Donor phản hồi Broadcast
 app.post('/api/broadcasts/:id/respond', async (req, res) => {
     try {
-        const { userId, status, supportType, helperName, helperPhone, helperBloodType } = req.body;
+        const { userId, status, supportType, helperName, helperPhone, helperBloodType, helperLat, helperLng } = req.body;
         const broadcast = await Broadcast.findById(req.params.id);
         const user = await User.findById(userId);
         
@@ -202,10 +205,13 @@ app.post('/api/broadcasts/:id/respond', async (req, res) => {
         // Xóa phản hồi cũ nếu có
         broadcast.responders = broadcast.responders.filter(r => r.userId !== userId);
         
+        // Khoảng thời gian
+        const respondedAt = new Date().toISOString();
+
         // Thêm phản hồi mới
         broadcast.responders.push({
             userId, name: user.name, phone: user.phone, bloodType: user.bloodType, status,
-            supportType, helperName, helperPhone, helperBloodType
+            supportType, helperName, helperPhone, helperBloodType, helperLat, helperLng, respondedAt
         });
         
         await broadcast.save();
