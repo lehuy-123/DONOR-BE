@@ -25,6 +25,10 @@ const UserSchema = new mongoose.Schema({
   location: { lat: Number, lng: Number },
   distance: String, // Lưu tạm để dễ test
   donationCount: { type: Number, default: 0 },
+  weight: Number,
+  height: Number,
+  age: Number,
+  lastDonationDate: String,
   pushSubscription: Object,
   isOnline: { type: Boolean, default: false },
   sessionToken: String,
@@ -72,7 +76,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 app.post('/api/users/sync', async (req, res) => {
-   const { phone, name, email, bloodType, location, pushSubscription, mockId, donationCount, isOnline } = req.body;
+   const { phone, name, email, bloodType, location, pushSubscription, mockId, donationCount, isOnline, weight, height, age, lastDonationDate } = req.body;
    try {
        // Tạo query linh hoạt cho test
        let query = mockId ? { _id: mockId } : { phone };
@@ -122,6 +126,10 @@ app.post('/api/users/sync', async (req, res) => {
            if (phone) user.phone = phone;
            if (bloodType) user.bloodType = bloodType;
            if (donationCount !== undefined) user.donationCount = donationCount;
+           if (weight !== undefined) user.weight = weight;
+           if (height !== undefined) user.height = height;
+           if (age !== undefined) user.age = age;
+           if (lastDonationDate !== undefined) user.lastDonationDate = lastDonationDate;
            user.isOnline = isOnline !== undefined ? isOnline : true;
        }
        
