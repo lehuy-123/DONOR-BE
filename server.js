@@ -307,6 +307,10 @@ io.on('connection', (socket) => {
         console.log(`[Socket] Bệnh viện ${hospitalId} tham gia vòng lặp`);
     });
 
+    socket.on('emergency-response', (payload) => {
+        io.to(`hospital_${payload.hospitalId}`).emit('emergency-response', payload);
+    });
+
     socket.on('disconnect', () => {
         console.log('[Socket] Mất tín hiệu ngắt kết nối: ', socket.id);
     });
