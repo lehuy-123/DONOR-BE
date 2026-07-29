@@ -117,7 +117,8 @@ app.post('/api/users/sync', async (req, res) => {
            user = new User({ 
                name, phone, email, bloodType, location, pushSubscription, 
                isOnline: isOnline !== undefined ? isOnline : true,
-               donationCount: donationCount || 0
+               donationCount: donationCount || 0,
+               weight, height, age, lastDonationDate
            });
        } else {
            if (location) user.location = location;
