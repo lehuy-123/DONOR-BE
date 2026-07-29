@@ -47,7 +47,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 app.post('/api/users/sync', async (req, res) => {
-   const { phone, name, email, bloodType, location, pushSubscription, mockId } = req.body;
+   const { phone, name, email, bloodType, location, pushSubscription, mockId, donationCount, isOnline } = req.body;
    try {
        // Tạo query linh hoạt cho test
        let query = mockId ? { _id: mockId } : { phone };
@@ -82,14 +82,19 @@ app.post('/api/users/sync', async (req, res) => {
        }
        
        if (!user) {
-           user = new User({ name, phone, email, bloodType, location, pushSubscription, isOnline: true });
+           user = new User({ 
+               name, phone, email, bloodType, location, pushSubscription, 
+               isOnline: isOnline !== undefined ? isOnline : true,
+               donationCount: donationCount || 0
+           });
        } else {
            if (location) user.location = location;
            if (pushSubscription) user.pushSubscription = pushSubscription;
            if (name) user.name = name;
            if (phone) user.phone = phone;
            if (bloodType) user.bloodType = bloodType;
-           user.isOnline = true;
+           if (donationCount !== undefined) user.donationCount = donationCount;
+           user.isOnline = isOnline !== undefined ? isOnline : true;
        }
        
        if (newSessionToken) {
