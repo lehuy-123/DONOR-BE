@@ -42,6 +42,9 @@ const BroadcastSchema = new mongoose.Schema({
   hospitalName: String,
   bloodTypes: [String],
   message: String,
+  type: { type: String, default: 'daily' }, // 'daily' (trong ngày) hoặc 'schedule' (đặt lịch)
+  scheduleDate: String, // 'YYYY-MM-DD'
+  maxDonors: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
   responders: [{
       userId: String,
@@ -201,8 +204,8 @@ app.get('/api/broadcasts', async (req, res) => {
 // Bệnh viện đăng broadcast khẩn
 app.post('/api/broadcasts', async (req, res) => {
     try {
-        const { hospitalId, hospitalName, bloodTypes, message } = req.body;
-        const newBroadcast = new Broadcast({ hospitalId, hospitalName, bloodTypes, message });
+        const { hospitalId, hospitalName, bloodTypes, message, type, scheduleDate, maxDonors } = req.body;
+        const newBroadcast = new Broadcast({ hospitalId, hospitalName, bloodTypes, message, type, scheduleDate, maxDonors });
         await newBroadcast.save();
         
         // Bắn Socket Realtime tới TOÀN BỘ NGƯỜI DÙNG (Kênh 'global-broadcast')
