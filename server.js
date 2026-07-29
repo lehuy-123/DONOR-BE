@@ -33,6 +33,23 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', UserSchema);
 
+const BroadcastSchema = new mongoose.Schema({
+  hospitalId: String,
+  hospitalName: String,
+  bloodTypes: [String],
+  message: String,
+  isActive: { type: Boolean, default: true },
+  responders: [{
+      userId: String,
+      name: String,
+      phone: String,
+      bloodType: String,
+      status: String // "Đồng Ý" hoặc "Từ Chối"
+  }]
+}, { timestamps: true });
+
+const Broadcast = mongoose.model('Broadcast', BroadcastSchema);
+
 // --- REST API ROUTES ---
 app.get('/api/vapid-key', (req, res) => res.json({ publicKey: PUBLIC_VAPID_KEY }));
 
@@ -144,6 +161,54 @@ app.get('/api/users/:id/chats', async (req, res) => {
         if(!user) return res.status(404).json({error: "Not found"});
         res.json({ chats: user.chats || [] });
     } catch(e) { res.status(500).json({ error: e.message }) }
+});
+
+// Danh sách broadcast toàn cục
+app.get('/api/broadcasts', async (req, res) => {
+    try {
+        const broadcasts = await Broadcast.find({ isActive: true }).sort({ createdAt: -1 });
+        res.json({ broadcasts: broadcasts.map(b => ({ ...b._doc, id: b._id.toString() })) });
+    } catch (e) { res.status(500).json({ error: e.message }) }
+});
+
+// Bệnh viện đăng broadcast khẩn
+app.post('/api/broadcasts', async (req, res) => {
+    try {
+        const { hospitalId, hospitalName, bloodTypes, message } = req.body;
+        const newBroadcast = new Broadcast({ hospitalId, hospitalName, bloodTypes, message });
+        await newBroadcast.save();
+        
+        // Bắn Socket Realtime tới TOÀN BỘ NGƯỜI DÙNG (Kênh 'global-broadcast')
+        io.emit('new-broadcast', { ...newBroadcast._doc, id: newBroadcast._id.toString() });
+        
+        res.json({ success: true, broadcast: { ...newBroadcast._doc, id: newBroadcast._id.toString() } });
+    } catch (e) { res.status(500).json({ error: e.message }) }
+});
+
+// Donor phản hồi Broadcast
+app.post('/api/broadcasts/:id/respond', async (req, res) => {
+    try {
+        const { userId, status } = req.body;
+        const broadcast = await Broadcast.findById(req.params.id);
+        const user = await User.findById(userId);
+        
+        if (!broadcast || !user) return res.status(404).json({ error: "Không tìm thấy" });
+        
+        // Xóa phản hồi cũ nếu có
+        broadcast.responders = broadcast.responders.filter(r => r.userId !== userId);
+        
+        // Thêm phản hồi mới
+        broadcast.responders.push({
+            userId, name: user.name, phone: user.phone, bloodType: user.bloodType, status
+        });
+        
+        await broadcast.save();
+        
+        // Báo cho Bệnh viện (Realtime cập nhật danh sách)
+        io.to(`hospital_${broadcast.hospitalId}`).emit('broadcast-update', { id: broadcast._id.toString(), responders: broadcast.responders });
+        
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }) }
 });
 
 // Lấy toàn bộ users (Dành cho Hộp thư Inbox)
