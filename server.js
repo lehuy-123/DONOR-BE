@@ -62,6 +62,16 @@ const BroadcastSchema = new mongoose.Schema({
 
 const Broadcast = mongoose.model('Broadcast', BroadcastSchema);
 
+const EmergencyMissionSchema = new mongoose.Schema({
+  hospitalId: String,
+  userId: String,
+  user: Object, // Toàn bộ thông tin donor tại thời điểm đó
+  status: { type: String, default: 'ĐANG ĐẾN' }, // 'ĐANG ĐẾN', 'ĐÃ ĐẾN', 'ĐÃ HIẾN MÁU'
+  isCompleted: { type: Boolean, default: false }
+}, { timestamps: true });
+
+const EmergencyMission = mongoose.model('EmergencyMission', EmergencyMissionSchema);
+
 // --- REST API ROUTES ---
 app.get('/api/vapid-key', (req, res) => res.json({ publicKey: PUBLIC_VAPID_KEY }));
 
@@ -237,6 +247,66 @@ app.get('/api/users', async (req, res) => {
     try {
         const users = await User.find({});
         res.json({ users: users.map(u => ({ ...u._doc, id: u._id.toString() })) });
+    } catch(e) { res.status(500).json({ error: e.message }) }
+});
+
+// --- CẬP NHẬT: QUẢN LÝ LỆNH ĐIỀU ĐỘNG KHẨN (ROUTINE) ---
+app.get('/api/emergency-missions', async (req, res) => {
+    const { hospitalId, userId } = req.query;
+    try {
+        const query = { isCompleted: false };
+        if (hospitalId) query.hospitalId = hospitalId;
+        if (userId) query.userId = userId;
+        
+        const missions = await EmergencyMission.find(query).sort({ createdAt: -1 });
+        res.json({ missions: missions.map(m => ({ ...m._doc, id: m._id.toString() })) });
+    } catch(e) { res.status(500).json({ error: e.message }) }
+});
+
+app.post('/api/emergency-missions', async (req, res) => {
+    const { hospitalId, userId, user, status } = req.body;
+    try {
+        // Hủy các mission cũ chưa hoàn thành của donor này
+        await EmergencyMission.updateMany({ userId, isCompleted: false }, { isCompleted: true });
+        
+        const newMission = new EmergencyMission({ hospitalId, userId, user, status, isCompleted: false });
+        await newMission.save();
+        
+        const payload = { ...newMission._doc, id: newMission._id.toString() };
+        
+        // Báo cho bệnh viện
+        io.to(`hospital_${hospitalId}`).emit('emergency-mission-update', payload);
+        // Báo lại cho donor nếu cần
+        io.to(userId).emit('emergency-mission-update', payload);
+        
+        res.json({ success: true, mission: payload });
+    } catch(e) { res.status(500).json({ error: e.message }) }
+});
+
+app.put('/api/emergency-missions/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body; 
+        const mission = await EmergencyMission.findById(req.params.id);
+        if (!mission) return res.status(404).json({error: "Not found"});
+        
+        mission.status = status;
+        if (status === 'ĐÃ HIẾN MÁU') {
+            mission.isCompleted = true;
+            // Optionally update user donationCount
+            const u = await User.findById(mission.userId);
+            if(u) {
+                u.donationCount = (u.donationCount || 0) + 1;
+                u.lastDonationDate = new Date().toISOString();
+                await u.save();
+            }
+        }
+        await mission.save();
+        
+        const payload = { ...mission._doc, id: mission._id.toString() };
+        io.to(`hospital_${mission.hospitalId}`).emit('emergency-mission-update', payload);
+        io.to(mission.userId).emit('emergency-mission-update', payload);
+        
+        res.json({ success: true, mission: payload });
     } catch(e) { res.status(500).json({ error: e.message }) }
 });
 
