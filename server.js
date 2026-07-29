@@ -56,6 +56,9 @@ app.post('/api/users/sync', async (req, res) => {
        let newSessionToken = null;
        if (mockId) {
           user = await User.findById(mockId);
+          if (!user) {
+              return res.status(401).json({ error: "Phiên đăng nhập không hợp lệ hoặc tài khoản đã bị xóa." });
+          }
        } else {
           // Gắn cờ hiệu tạo session mới vì đây là luồng đăng nhập (không truyền mockId)
           newSessionToken = Math.random().toString(36).substring(2, 15);
